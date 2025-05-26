@@ -1,12 +1,15 @@
 #!/data/data/com.termux/files/usr/bin/bash
-
+# Versi otomatis berdasarkan Git
 VERSION=$(git describe --tags --always 2>/dev/null || echo "v0.0.0-dev")
 
+# Cek apakah ingin menampilkan versi saja
 if [[ "$1" == "--version" || "$1" == "-v" ]]; then
     echo "ADYT version $VERSION"
     exit 0
 fi
+
 figlet "YT Downloader"
+echo "ADYT Downloader $VERSION"
 read -p "Masukkan URL YouTube: " YTURL
 if [ -z "$YTURL" ]; then
     echo "URL kosong. Keluar."
