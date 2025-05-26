@@ -1,5 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
+VERSION=$(git describe --tags --always 2>/dev/null || echo "v0.0.0-dev")
+
+if [[ "$1" == "--version" || "$1" == "-v" ]]; then
+    echo "ADYT version $VERSION"
+    exit 0
+fi
+figlet "YT Downloader"
 read -p "Masukkan URL YouTube: " YTURL
 if [ -z "$YTURL" ]; then
     echo "URL kosong. Keluar."
@@ -7,6 +14,7 @@ if [ -z "$YTURL" ]; then
 fi
 
 clear
+
 echo "Mengambil daftar kualitas dari $YTURL..."
 yt-dlp -F "$YTURL" > "$HOME/.yt_formats.txt"
 
@@ -95,18 +103,43 @@ case $OUTEXT in
 esac
 
 # ===== LOKASI SIMPAN =====
-read -p "Simpan ke folder (default ~/downloads/yt): " SAVEPATH
+TEMPPATH="$HOME/downloads/yt"
+mkdir -p "$TEMPPATH"
+
+# ===== MULAI DOWNLOAD =====
+echo "Download ke: $TEMPPATH (format: $EXT)"
+yt-dlp -f "$FORMAT" -o "$TEMPPATH/%(title).100s.%(ext)s" \
+         --merge-output-format "$EXT" --external-downloader aria2c \
+         --external-downloader-args aria2c:"-x 16 -s 16 -k 1M" --no-warnings "$YTURL"
+
+
+FILENAME=$(yt-dlp -f "$FORMAT" -o "$TEMPPATH/%(title).100s.%(ext)s" \
+           --merge-output-format "$EXT" --print filename "$YTURL")
+
+BASE="$HOME/storage/shared/"
+while true; do
+    CHOICE=$(find "$BASE" -maxdepth 1 -mindepth 1 -type d ! -name ".*" | fzf --prompt="Pilih folder di: $BASE ")
+
+    # Jika tidak ada pilihan (user tekan Esc), keluar dari loop
+    if [ -z "$CHOICE" ]; then
+        break
+    fi
+
+    # Set folder yang dipilih sebagai base baru untuk iterasi berikutnya
+    BASE="$CHOICE"
+done
+
+SAVEPATH="$BASE"
+echo "Folder akhir: $SAVEPATH"
+
+# Jika tidak dipilih (misalnya tekan Esc), gunakan default
 if [ -z "$SAVEPATH" ]; then
     SAVEPATH="$HOME/downloads/yt"
 fi
-mkdir -p "$SAVEPATH"
 
-# ===== MULAI DOWNLOAD =====
-echo
-echo "Download ke: $SAVEPATH (format: $EXT)"
-yt-dlp -f "$FORMAT" -o "$SAVEPATH/%(title).100s.%(ext)s" \
-    --merge-output-format "$EXT" --external-downloader aria2c \
-    --external-downloader-args aria2c:"-x 16 -s 16 -k 1M" "$YTURL"
+mkdir -p "$SAVEPATH"
+#pindahkan ke path yg dipilih
+mv "$FILENAME" "$SAVEPATH"
 
 # ===== BERSIHKAN SEMENTARA =====
 rm -f "$HOME/.yt_formats.txt" "$HOME/.vid_id_map.txt" "$HOME/.aud_id_map.txt"
