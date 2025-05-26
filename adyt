@@ -22,10 +22,11 @@ echo "Mengambil daftar kualitas dari $YTURL..."
 yt-dlp -F "$YTURL" > "$HOME/.yt_formats.txt"
 
 # ===== TAMPILKAN VIDEO =====
-echo
-echo "========== PILIHAN VIDEO =========="
-echo "No | ID   | Resolusi | FPS | Size"
-echo "-------------------------------------"
+echo "╔════════════════════════════════════════╗"
+echo "║             PILIHAN VIDEO              ║"
+echo "╠════╦═════╦═══════════╦═════╦═══════════╣"
+echo "║ No ║ ID  ║ Resolusi  ║ FPS ║   Size    ║"
+echo "╠════╬═════╬═══════════╬═════╬═══════════╣"
 awk '
 /video only/ {
     no+=1
@@ -39,10 +40,12 @@ awk '
             break
         }
     }
-    printf "%-2d | %-4s | %-8s | %-3s | %s\n", no, id, res, fps, size
+    printf "║ %-2d ║ %-3s ║ %-9s ║ %-3s ║ %-9s ║\n", no, id, res, fps, size
     map[no]=id
 }
-END { for (i in map) print map[i] > "'$HOME'/.vid_id_map.txt" }
+END { 
+     print "╚════╩═════╩═══════════╩═════╩═══════════╝"
+     for (i in map) print map[i] > "'$HOME'/.vid_id_map.txt" }
 ' "$HOME/.yt_formats.txt"
 
 read -p "Pilih nomor video (kosongkan jika ingin audio saja): " VIDNUM
