@@ -1,0 +1,112 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+read -p "Masukkan URL YouTube: " YTURL
+if [ -z "$YTURL" ]; then
+    echo "URL kosong. Keluar."
+    exit 1
+fi
+
+clear
+echo "Mengambil daftar kualitas dari $YTURL..."
+yt-dlp -F "$YTURL" > "$HOME/.yt_formats.txt"
+
+# ===== TAMPILKAN VIDEO =====
+echo
+echo "========== PILIHAN VIDEO =========="
+echo "No | ID   | Resolusi | FPS | Size"
+echo "-------------------------------------"
+awk '
+/video only/ {
+    no+=1
+    id=$1
+    res=$3
+    fps=$4
+    size="?"
+    for (i=1;i<=NF;i++) {
+        if ($i ~ /MiB/ || $i ~ /KiB/) {
+            size=$i
+            break
+        }
+    }
+    printf "%-2d | %-4s | %-8s | %-3s | %s\n", no, id, res, fps, size
+    map[no]=id
+}
+END { for (i in map) print map[i] > "'$HOME'/.vid_id_map.txt" }
+' "$HOME/.yt_formats.txt"
+
+read -p "Pilih nomor video (kosongkan jika ingin audio saja): " VIDNUM
+VIDFORMAT=""
+if [ -n "$VIDNUM" ]; then
+    VIDFORMAT=$(sed -n "${VIDNUM}p" "$HOME/.vid_id_map.txt")
+fi
+
+# ===== TAMPILKAN AUDIO =====
+echo
+echo "========== PILIHAN AUDIO =========="
+echo "No | ID   | Channels | Bitrate | Size"
+echo "-------------------------------------"
+awk '
+/audio only/ {
+    no+=1
+    id=$1
+    channels=$6
+    abr=$3
+    size="?"
+    for (i=1;i<=NF;i++) {
+        if ($i ~ /MiB/ || $i ~ /KiB/) {
+            size=$i
+            break
+        }
+    }
+    printf "%-2d | %-4s | %-6s | %-7s | %s\n", no, id, channels, abr, size
+    map[no]=id
+}
+END { for (i in map) print map[i] > "'$HOME'/.aud_id_map.txt" }
+' "$HOME/.yt_formats.txt"
+
+read -p "Pilih nomor audio: " AUDNUM
+AUDFORMAT=$(sed -n "${AUDNUM}p" "$HOME/.aud_id_map.txt")
+
+if [ -z "$AUDFORMAT" ]; then
+    echo "Audio tidak dipilih. Keluar."
+    exit 1
+fi
+
+# ===== GABUNGKAN FORMAT =====
+if [ -n "$VIDFORMAT" ]; then
+    FORMAT="${VIDFORMAT}+${AUDFORMAT}"
+else
+    FORMAT="$AUDFORMAT"
+fi
+
+# ===== FORMAT OUTPUT =====
+echo
+echo "========== PILIH FORMAT OUTPUT =========="
+echo "1) mp4"
+echo "2) webm"
+echo "3) mp3 (audio saja)"
+read -p "Pilih: " OUTEXT
+
+case $OUTEXT in
+    1) EXT="mp4" ;;
+    2) EXT="webm" ;;
+    3) EXT="mp3" ;;
+    *) echo "Pilihan tidak valid. Default ke mp4."; EXT="mp4" ;;
+esac
+
+# ===== LOKASI SIMPAN =====
+read -p "Simpan ke folder (default ~/downloads/yt): " SAVEPATH
+if [ -z "$SAVEPATH" ]; then
+    SAVEPATH="$HOME/downloads/yt"
+fi
+mkdir -p "$SAVEPATH"
+
+# ===== MULAI DOWNLOAD =====
+echo
+echo "Download ke: $SAVEPATH (format: $EXT)"
+yt-dlp -f "$FORMAT" -o "$SAVEPATH/%(title).100s.%(ext)s" \
+    --merge-output-format "$EXT" --external-downloader aria2c \
+    --external-downloader-args aria2c:"-x 16 -s 16 -k 1M" "$YTURL"
+
+# ===== BERSIHKAN SEMENTARA =====
+rm -f "$HOME/.yt_formats.txt" "$HOME/.vid_id_map.txt" "$HOME/.aud_id_map.txt"
