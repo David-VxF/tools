@@ -20,7 +20,6 @@ clear
 
 echo "Mengambil daftar kualitas dari $YTURL..."
 yt-dlp -F "$YTURL" > "$HOME/.yt_formats.txt"
-
 # ===== TAMPILKAN VIDEO =====
 echo "╔════════════════════════════════════════╗"
 echo "║             PILIHAN VIDEO              ║"
@@ -57,25 +56,45 @@ fi
 # ===== TAMPILKAN AUDIO =====
 echo
 echo "========== PILIHAN AUDIO =========="
-echo "No | ID   | Channels | Bitrate | Size"
+echo "No | ID   | Codec   | Bitrate | Asr "
 echo "-------------------------------------"
 awk '
-/audio only/ {
-    no+=1
-    id=$1
-    channels=$6
-    abr=$3
-    size="?"
-    for (i=1;i<=NF;i++) {
-        if ($i ~ /MiB/ || $i ~ /KiB/) {
-            size=$i
-            break
-        }
-    }
-    printf "%-2d | %-4s | %-6s | %-7s | %s\n", no, id, channels, abr, size
-    map[no]=id
+BEGIN {
+    FS = " +"
+    no = 0
+    found_header = 0
 }
-END { for (i in map) print map[i] > "'$HOME'/.aud_id_map.txt" }
+# Temukan posisi kolom dari header
+/^ID[ \t]+EXT/ {
+    for (i = 1; i <= NF; i++) {
+        if ($i == "ID") id_col = i
+        else if ($i == "TBR") tbr_col = i
+        else if ($i ~ /ABR/) abr_col = i
+        else if ($i == "ASR") asr_col = i
+    }
+    found_header = 1
+    next
+}
+
+# Proses baris setelah header, hanya jika semua kolom tersedia
+found_header && /audio only/ {
+    id  = (id_col ? $id_col : "")
+    tbr = (tbr_col ? $tbr_col : "")
+    abr = (abr_col ? $abr_col : "")
+    asr = (asr_col ? $asr_col : "")
+
+    # Cek apakah semua field terisi
+    if (id != "" && tbr != "" && abr != "" && asr != "") {
+        no++
+        printf "%-2d | %-4s | %-6s | %-7s | %s\n", no, id, tbr, abr, asr
+        map[no] = id
+    }
+}
+
+END {
+    for (i in map)
+        print map[i] > "'$HOME'/.aud_id_map.txt"
+}
 ' "$HOME/.yt_formats.txt"
 
 read -p "Pilih nomor audio: " AUDNUM
