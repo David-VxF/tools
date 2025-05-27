@@ -10,11 +10,76 @@ fi
 
 figlet "YT Downloader"
 echo "ADYT Downloader $VERSION"
-read -p "Masukkan URL YouTube: " YTURL
-if [ -z "$YTURL" ]; then
-    echo "URL kosong. Keluar."
-    exit 1
-fi
+
+while true; do
+    read -p "Masukkan URL YouTube: " YTURL
+     # Cek apakah kosong
+    if [ -z "$YTURL" ]; then
+        # Array dengan beberapa variasi pesan
+        messages=("Ups, URL-nya belum diisi!"
+                  "Sepertinya kamu lupa masukkan URL."
+                  "URL kosong nih, coba cek lagi ya."
+                  "Ayo, isi URL-nya dulu sebelum lanjut."
+                  "URL masih kosong, bantu saya dengan mengisinya."
+                  "Hmm, saya nggak menemukan URL di situ."
+                  "URL-nya mana, ya? Nggak kelihatan."
+                  "Biar saya bantu, tapi URL-nya tolong diisi dulu."
+                  "Yuk, pastikan URL sudah dimasukkan."
+                  "Belum ada URL yang terdeteksi."
+                  "Hei, URL dibutuhkan untuk lanjut, loh."
+                  "Tidak bisa melanjutkan tanpa URL, maaf."
+                  "Saya perlu URL-nya dulu, baru bisa lanjut."
+                  "URL hilang entah ke mana, coba isi lagi."
+                  "Isi URL-nya dulu ya, baru kita lanjut."
+                  "Sepertinya ada yang ketinggalan... yup, URL-nya!"
+                  "URL tidak boleh kosong, ayo lengkapi dulu."
+                  "Kita butuh URL untuk mulai, tolong isi ya."
+                  "Proses dihentikan karena URL belum ada."
+                  "URL belum masuk, padahal itu penting."
+                  "Masukkan URL terlebih dahulu, yuk."
+                  "URL-nya belum lengkap tuh."
+                  "Wah, saya nggak bisa jalan tanpa URL."
+                  "URL kosong, coba dicek dulu ya."
+                  "Coba isi URL yang diperlukan dulu."
+                  "URL-nya kemana? Saya tungguin, ya."
+                  "Ada yang terlupa, yaitu URL-nya."
+                  "Oops! URL masih kosong tuh."
+                  "URL belum kebaca nih, coba ulangi."
+                  "Isi URL dulu dong, biar saya bisa bantu."
+                  "Tanpa URL, saya belum bisa mulai."
+                  "Ayo dicek lagi, URL-nya belum ada."
+                  "URL-nya ketinggalan tuh."
+                  "URL-nya belum diinput, yuk isi sekarang."
+                  "Tolong isi URL-nya dulu sebelum lanjut."
+                  "URL masih kosong, silakan lengkapi dulu."
+                  "Maaf, saya butuh URL agar bisa lanjut."
+                  "Tanpa URL, perintah ini belum bisa diproses."
+                  "Input URL tidak ditemukan, isi dulu ya."
+                  "Saya butuh URL agar bisa melanjutkan tugas ini."
+                  "Yuk, lengkapi input dengan URL."
+                  "URL tidak tersedia, mohon dicek."
+                  "URL kosong, proses tidak bisa dijalankan."
+                  "Perintah gagal karena tidak ada URL."
+                  "URL dibutuhkan, jangan dikosongkan ya."
+                  "Input masih kosong, terutama bagian URL-nya."
+                  "URL penting loh, jangan sampai lupa."
+                  "Tanpa URL, saya bingung mau ngapain."
+                  "URL belum saya temukan, mohon diisi."
+                  "URL-nya kosong, jadi saya nggak bisa lanjut."
+                  "Ayo isi URL biar kita bisa proses bareng!")       
+        # Pilih pesan secara acak
+        random_message=${messages[$RANDOM % ${#messages[@]}]}
+        # Tampilkan pesan acak
+        echo "$random_message"
+        continue
+    fi
+    # Cek apakah URL valid YouTube
+    if echo "$YTURL" | grep -Eq '^https?://(www\.)?(youtube\.com|youtu\.be)/'; then
+        break  # keluar dari loop jika valid
+    else
+        echo "URL bukan dari YouTube. Coba lagi."
+    fi
+done
 
 clear
 
@@ -22,7 +87,7 @@ echo "Mengambil daftar kualitas dari $YTURL..."
 yt-dlp -F "$YTURL" > "$HOME/.yt_formats.txt"
 # ===== TAMPILKAN VIDEO =====
 echo "╔════════════════════════════════════════╗"
-echo "║             PILIHAN VIDEO              ║"
+echo "║              FORMAT VIDEO              ║"
 echo "╠════╦═════╦═══════════╦═════╦═══════════╣"
 echo "║ No ║ ID  ║ Resolusi  ║ FPS ║   Size    ║"
 echo "╠════╬═════╬═══════════╬═════╬═══════════╣"
@@ -54,10 +119,11 @@ if [ -n "$VIDNUM" ]; then
 fi
 
 # ===== TAMPILKAN AUDIO =====
-echo
-echo "========== PILIHAN AUDIO =========="
-echo "No | ID   | Codec   | Bitrate | Asr "
-echo "-------------------------------------"
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║                          FORMAT AUDIO                          ║"
+echo "╠════╦═════╦═══════════════╦═════════════════╦═══════════════════╣"
+echo "║ No ║ ID  ║ Total Bitrate ║ Average Bitrate ║ Audio Sample Rate ║"
+echo "╠════╬═════╬═══════════════╬═════════════════╬═══════════════════╣"
 awk '
 BEGIN {
     FS = " +"
@@ -81,17 +147,31 @@ found_header && /audio only/ {
     id  = (id_col ? $id_col : "")
     tbr = (tbr_col ? $tbr_col : "")
     abr = (abr_col ? $abr_col : "")
-    asr = (asr_col ? $asr_col : "")
+    asr_raw = (asr_col ? $asr_col : "")
+
+    # Konversi ASR misalnya 44k menjadi 44100 Hz
+        if (asr_raw ~ /^[0-9]+k$/) {
+            rate = substr(asr_raw, 1, length(asr_raw)-1)
+            asr = rate * 1000 " Hz"
+        } else {
+            asr = "?"
+        }
 
     # Cek apakah semua field terisi
-    if (id != "" && tbr != "" && abr != "" && asr != "") {
+    if (id != "" && tbr != "" && abr != "" && asr != "") 
+    {
         no++
-        printf "%-2d | %-4s | %-6s | %-7s | %s\n", no, id, tbr, abr, asr
+        abr_display = abr
+        gsub(/k$/, " kbps", abr_display)
+ 	    tbr_display = tbr
+	    gsub(/k$/, " kbps", tbr_display)
+        printf "║ %-2d ║ %-3s ║ %-13s ║ %-15s ║ %-17s ║\n", no, id, tbr_display, abr_display, asr
         map[no] = id
     }
 }
 
 END {
+	 print "╚════╩═════╩═══════════════╩═════════════════╩═══════════════════╝"
     for (i in map)
         print map[i] > "'$HOME'/.aud_id_map.txt"
 }
