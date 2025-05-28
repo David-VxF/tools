@@ -11,73 +11,53 @@ fi
 figlet "YT Downloader"
 echo "ADYT Downloader $VERSION"
 
-while true; do
+# Respon berdasarkan pola percobaan
+declare -A RESPON_PEMBUKA=(
+    ["x"]="Kenapa kosong? Coba isi dulu, ya."
+    ["?"]="Hmm... itu bukan URL YouTube, lho."
+)
+
+declare -A RESPON_TENGAH=(
+    ["xx"]="Masih kosong juga. Ayo, jangan malu-malu~"
+    ["x?"]="Baru saja kosong, sekarang salah URL."
+    ["?x"]="Tadi salah, sekarang malah kosong?"
+    ["??"]="Dua kali salah, coba lebih hati-hati ya."
+)
+
+declare -A RESPON_PENUTUP=(
+    ["xxx"]="Tiga kali kosong... Yuri sedih... "
+    ["xx?"]="Akhirnya salah juga. Yuri nyerah, deh."
+    ["x?x"]="Maju mundur... tapi tetap belum benar."
+    ["x??"]="Salah dua kali, yuk belajar dulu."
+    ["?xx"]="Awalnya salah, lalu dua kali kosong..."
+    ["?x?"]="Salah, kosong, lalu salah lagi. Aduh..."
+    ["??x"]="Akhirnya benar? Eh, ternyata masih kosong."
+    ["???"]="Tiga kali salah URL. Yuri menyerah."
+)
+# Inisialisasi log percobaan
+polanya=""
+
+# Loop maksimum 3 kali
+for ((i = 1; i <= 3; i++)); do
     read -p "Masukkan URL YouTube: " YTURL
-     # Cek apakah kosong
-    if [ -z "$YTURL" ]; then
-        # Array dengan beberapa variasi pesan
-        messages=("Ups, URL-nya belum diisi!"
-                  "Sepertinya kamu lupa masukkan URL."
-                  "URL kosong nih, coba cek lagi ya."
-                  "Ayo, isi URL-nya dulu sebelum lanjut."
-                  "URL masih kosong, bantu saya dengan mengisinya."
-                  "Hmm, saya nggak menemukan URL di situ."
-                  "URL-nya mana, ya? Nggak kelihatan."
-                  "Biar saya bantu, tapi URL-nya tolong diisi dulu."
-                  "Yuk, pastikan URL sudah dimasukkan."
-                  "Belum ada URL yang terdeteksi."
-                  "Hei, URL dibutuhkan untuk lanjut, loh."
-                  "Tidak bisa melanjutkan tanpa URL, maaf."
-                  "Saya perlu URL-nya dulu, baru bisa lanjut."
-                  "URL hilang entah ke mana, coba isi lagi."
-                  "Isi URL-nya dulu ya, baru kita lanjut."
-                  "Sepertinya ada yang ketinggalan... yup, URL-nya!"
-                  "URL tidak boleh kosong, ayo lengkapi dulu."
-                  "Kita butuh URL untuk mulai, tolong isi ya."
-                  "Proses dihentikan karena URL belum ada."
-                  "URL belum masuk, padahal itu penting."
-                  "Masukkan URL terlebih dahulu, yuk."
-                  "URL-nya belum lengkap tuh."
-                  "Wah, saya nggak bisa jalan tanpa URL."
-                  "URL kosong, coba dicek dulu ya."
-                  "Coba isi URL yang diperlukan dulu."
-                  "URL-nya kemana? Saya tungguin, ya."
-                  "Ada yang terlupa, yaitu URL-nya."
-                  "Oops! URL masih kosong tuh."
-                  "URL belum kebaca nih, coba ulangi."
-                  "Isi URL dulu dong, biar saya bisa bantu."
-                  "Tanpa URL, saya belum bisa mulai."
-                  "Ayo dicek lagi, URL-nya belum ada."
-                  "URL-nya ketinggalan tuh."
-                  "URL-nya belum diinput, yuk isi sekarang."
-                  "Tolong isi URL-nya dulu sebelum lanjut."
-                  "URL masih kosong, silakan lengkapi dulu."
-                  "Maaf, saya butuh URL agar bisa lanjut."
-                  "Tanpa URL, perintah ini belum bisa diproses."
-                  "Input URL tidak ditemukan, isi dulu ya."
-                  "Saya butuh URL agar bisa melanjutkan tugas ini."
-                  "Yuk, lengkapi input dengan URL."
-                  "URL tidak tersedia, mohon dicek."
-                  "URL kosong, proses tidak bisa dijalankan."
-                  "Perintah gagal karena tidak ada URL."
-                  "URL dibutuhkan, jangan dikosongkan ya."
-                  "Input masih kosong, terutama bagian URL-nya."
-                  "URL penting loh, jangan sampai lupa."
-                  "Tanpa URL, saya bingung mau ngapain."
-                  "URL belum saya temukan, mohon diisi."
-                  "URL-nya kosong, jadi saya nggak bisa lanjut."
-                  "Ayo isi URL biar kita bisa proses bareng!")       
-        # Pilih pesan secara acak
-        random_message=${messages[$RANDOM % ${#messages[@]}]}
-        # Tampilkan pesan acak
-        echo "$random_message"
-        continue
-    fi
-    # Cek apakah URL valid YouTube
-    if echo "$YTURL" | grep -Eq '^https?://(www\.)?(youtube\.com|youtu\.be)/'; then
-        break  # keluar dari loop jika valid
+
+    if [[ -z "$YTURL" ]]; then
+        polanya+="x"
+    elif ! echo "$YTURL" | grep -Eq '^https?://(www\.)?(youtube\.com|youtu\.be)/'; then
+        polanya+="?"
     else
-        echo "URL bukan dari YouTube. Coba lagi."
+        break  # input valid
+    fi
+
+    # Tampilkan respon berdasarkan percobaan
+    if [[ $i == 1 ]]; then
+        [[ -v RESPON_PEMBUKA["${polanya:0:1}"] ]] && echo "${RESPON_PEMBUKA[${polanya:0:1}]}"
+    elif [[ $i == 2 ]]; then
+        [[ -v RESPON_TENGAH["${polanya:0:2}"] ]] && echo "${RESPON_TENGAH[${polanya:0:2}]}"
+    else
+        [[ -v RESPON_PENUTUP["${polanya:0:3}"] ]] && echo "${RESPON_PENUTUP[${polanya:0:3}]}"
+        echo "Percobaan gagal. Program berhenti."
+        exit 1
     fi
 done
 
