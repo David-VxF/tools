@@ -13,33 +13,43 @@ echo "ADYT Downloader $VERSION"
 
 # Respon berdasarkan pola percobaan
 declare -A RESPON_PEMBUKA=(
-    ["x"]="Kenapa kosong? Coba isi dulu, ya."
-    ["?"]="Hmm... itu bukan URL YouTube, lho."
+    ["x"]="Tidak dapat memproses permintaan Anda karena tautan YouTube kosong. Silakan lengkapi dan coba lagi."
+    ["?"]="Tidak dapat memproses permintaan Anda karena tautan/input yang dimasukkan bukan berasal dari YouTube.\
+Mungkin kamu typo, Silakan periksa kembali dan coba lagi dengan URL yang berasal dari YouTube."
 )
 
 declare -A RESPON_TENGAH=(
-    ["xx"]="Masih kosong juga. Ayo, jangan malu-malu~"
-    ["x?"]="Baru saja kosong, sekarang salah URL."
-    ["?x"]="Tadi salah, sekarang malah kosong?"
-    ["??"]="Dua kali salah, coba lebih hati-hati ya."
+    ["xx"]="Tautan YouTube masih belum dimasukkan. Sistem tidak dapat melanjutkan permintaan Anda tanpa input yang valid. Silakan tulis atau tempelkan URL dengan benar lalu coba kembali"
+    ["x?"]="Inputnya memang tidak kosong, tapi saat dicoba ternyata bukan URL YouTube. Mohon pastikan URL yang Anda tulis atau tempel berasal dari YouTube dan tidak typo"
+    ["?x"]="Input sebelumnya bukan URL YouTube, dan sekarang malah kosong. Silakan periksa kembali dan pastikan Anda menyalin tautan dengan benar sebelum mencoba ulang"
+    ["??"]="[Error ??] Tautan tidak valid dan bukan dari YouTube, Silakan teliti kembali link yang Anda gunakan dan pastikan itu URL YouTube yang benar"
 )
 
 declare -A RESPON_PENUTUP=(
-    ["xxx"]="Tiga kali kosong... Yuri sedih... "
-    ["xx?"]="Akhirnya salah juga. Yuri nyerah, deh."
-    ["x?x"]="Maju mundur... tapi tetap belum benar."
-    ["x??"]="Salah dua kali, yuk belajar dulu."
-    ["?xx"]="Awalnya salah, lalu dua kali kosong..."
-    ["?x?"]="Salah, kosong, lalu salah lagi. Aduh..."
-    ["??x"]="Akhirnya benar? Eh, ternyata masih kosong."
-    ["???"]="Tiga kali salah URL. Yuri menyerah."
+    ["xxx"]="Tautan YouTube belum juga dimasukkan setelah beberapa percobaan. Sistem tidak dapat memproses permintaan Anda tanpa input yang valid. Silakan coba kembali dengan menjalankan ulang program"
+    ["xx?"]="percobaan terakhir gagal, [Error xx?] 2 kali input kosong dan terakhir salah.mungkin kamu terlalu buru. silahkan coba kembali dengam menjalankan ulang program"
+    ["x?x"]="Input sebelumnya kosong, lalu diberikan URL yang tidak valid, dan sekarang malah kosong lagi. Mohon pastikan Anda menyalin tautan YouTube dengan benar sebelum mencoba kembali."
+    ["x??"]="Awalnya belum ada tautan, lalu dua kali berturut-turut diberikan input yang bukan berasal dari YouTube. Silakan pastikan Anda menyalin URL dari YouTube secara lengkap dan benar sebelum mencoba kembali."
+    ["?xx"]="Input sebelumnya bukan berasal dari YouTube, lalu dua kali berturut-turut tidak ada tautan yang dimasukkan. Pastikan Anda menyalin URL dengan benar dari YouTube sebelum melanjutkan."
+    ["?x?"]="Input pertama bukan URL YouTube, lalu kosong, dan terakhir tetap bukan tautan yang valid. Silakan periksa kembali dan pastikan Anda menggunakan URL asli dari YouTube sebelum mencoba kembali."
+    ["??x"]="[Error ??x] Dua input sebelumnya bukan tautan YouTube, dan sekarang tidak ada tautan yang dimasukkan sama sekali. Silakan tempelkan URL yang valid dari YouTube agar permintaan dapat diproses."  
+    ["???"]="[Error ???] Tiga kali berturut-turut menerima input yang bukan berasal dari YouTube. Mohon pastikan URL yang digunakan adalah benar-benar dari YouTube sebelum mencoba kembali."
 )
 # Inisialisasi log percobaan
 polanya=""
 
+# Tangkap Ctrl+C dan abaikan atau beri pesan
+trap 'echo -e "\n[Error 100] Tidak bisa keluar dengan Ctrl+C. Gunakan opsi 100 untuk keluar dengan benar.";' SIGINT
+
 # Loop maksimum 3 kali
 for ((i = 1; i <= 3; i++)); do
     read -p "Masukkan URL YouTube: " YTURL
+
+    # Tangani opsi keluar
+        if [[ "$YTURL" == "100" ]]; then
+            echo "Program dihentikan oleh pengguna"
+            exit 0
+        fi
 
     if [[ -z "$YTURL" ]]; then
         polanya+="x"
@@ -66,11 +76,11 @@ clear
 echo "Mengambil daftar kualitas dari $YTURL..."
 yt-dlp -F "$YTURL" > "$HOME/.yt_formats.txt"
 # ===== TAMPILKAN VIDEO =====
-echo "╔════════════════════════════════════════╗"
-echo "║              FORMAT VIDEO              ║"
-echo "╠════╦═════╦═══════════╦═════╦═══════════╣"
-echo "║ No ║ ID  ║ Resolusi  ║ FPS ║   Size    ║"
-echo "╠════╬═════╬═══════════╬═════╬═══════════╣"
+echo "╔══════════════════════════════════════════╗"
+echo "║               FORMAT VIDEO               ║"
+echo "╠════╦═════╦═══════════╦═════╦═════════════╣"
+echo "║ No ║ ID  ║ Resolusi  ║ FPS ║    Size     ║"
+echo "╠════╬═════╬═══════════╬═════╬═════════════╣"
 awk '
 /video only/ {
     no+=1
@@ -84,26 +94,45 @@ awk '
             break
         }
     }
-    printf "║ %-2d ║ %-3s ║ %-9s ║ %-3s ║ %-9s ║\n", no, id, res, fps, size
+    printf "║ %-2d ║ %-3s ║ %-9s ║ %-3s ║ %-11s ║\n", no, id, res, fps, size
     map[no]=id
 }
 END { 
-     print "╚════╩═════╩═══════════╩═════╩═══════════╝"
+     print "╚════╩═════╩═══════════╩═════╩═════════════╝"
      for (i in map) print map[i] > "'$HOME'/.vid_id_map.txt" }
 ' "$HOME/.yt_formats.txt"
 
-read -p "Pilih nomor video (kosongkan jika ingin audio saja): " VIDNUM
-VIDFORMAT=""
-if [ -n "$VIDNUM" ]; then
-    VIDFORMAT=$(sed -n "${VIDNUM}p" "$HOME/.vid_id_map.txt")
-fi
+# Hitung jumlah baris dalam daftar video
+TOTAL_VID=$(wc -l < "$HOME/.vid_id_map.txt")
+
+while true; do
+    read -p "Pilih nomor video (99 = audio saja, 100 = keluar): " VIDNUM
+
+    if [[ "$VIDNUM" = "99" ]]; then
+        echo "Anda memilih audio saja."
+        VIDFORMAT=""
+        break
+
+    elif [[ "$VIDNUM" = "100" ]]; then
+        echo "Program dihentikan oleh pengguna."
+        exit 0
+
+    elif [[ "$VIDNUM" =~ ^[0-9]+$ ]] && [ "$VIDNUM" -ge 1 ] && [ "$VIDNUM" -le "$TOTAL_VID" ]; then
+        VIDFORMAT=$(sed -n "${VIDNUM}p" "$HOME/.vid_id_map.txt")
+        echo "Format video terpilih: $VIDFORMAT"
+        break
+
+    else
+        echo "Nomor \"$VIDNUM\" tidak tersedia. Silakan pilih angka 1–$TOTAL_VID, 99 untuk audio saja, atau 100 untuk keluar."
+    fi
+done
 
 # ===== TAMPILKAN AUDIO =====
-echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║                          FORMAT AUDIO                          ║"
-echo "╠════╦═════╦═══════════════╦═════════════════╦═══════════════════╣"
-echo "║ No ║ ID  ║ Total Bitrate ║ Average Bitrate ║ Audio Sample Rate ║"
-echo "╠════╬═════╬═══════════════╬═════════════════╬═══════════════════╣"
+echo "╔════════════════════════════════════════════════════════════════════╗"
+echo "║                            FORMAT AUDIO                            ║"
+echo "╠════╦═════════╦═══════════════╦═════════════════╦═══════════════════╣"
+echo "║ No ║   ID    ║ Total Bitrate ║ Average Bitrate ║ Audio Sample Rate ║"
+echo "╠════╬═════════╬═══════════════╬═════════════════╬═══════════════════╣"
 awk '
 BEGIN {
     FS = " +"
@@ -145,25 +174,42 @@ found_header && /audio only/ {
         gsub(/k$/, " kbps", abr_display)
  	    tbr_display = tbr
 	    gsub(/k$/, " kbps", tbr_display)
-        printf "║ %-2d ║ %-3s ║ %-13s ║ %-15s ║ %-17s ║\n", no, id, tbr_display, abr_display, asr
+        printf "║ %-2d ║ %-7s ║ %-13s ║ %-15s ║ %-17s ║\n", no, id, tbr_display, abr_display, asr
         map[no] = id
     }
 }
 
 END {
-	 print "╚════╩═════╩═══════════════╩═════════════════╩═══════════════════╝"
+	 print "╚════╩═════════╩═══════════════╩═════════════════╩═══════════════════╝"
     for (i in map)
         print map[i] > "'$HOME'/.aud_id_map.txt"
 }
 ' "$HOME/.yt_formats.txt"
 
-read -p "Pilih nomor audio: " AUDNUM
-AUDFORMAT=$(sed -n "${AUDNUM}p" "$HOME/.aud_id_map.txt")
+# Hitung jumlah baris dalam daftar audio
+TOTAL_AUD=$(wc -l < "$HOME/.aud_id_map.txt")
 
-if [ -z "$AUDFORMAT" ]; then
-    echo "Audio tidak dipilih. Keluar."
-    exit 1
-fi
+while true; do
+    read -p "Pilih nomor audio (99 = hanya video, 100 = keluar): " AUDNUM
+
+    if [[ "$AUDNUM" == "99" ]]; then
+        echo "Anda memilih video saja tanpa audio."
+        AUDFORMAT=""
+        break
+
+    elif [[ "$AUDNUM" == "100" ]]; then
+        echo "Program dihentikan oleh pengguna."
+        exit 0
+
+    elif [[ "$AUDNUM" =~ ^[0-9]+$ ]] && [ "$AUDNUM" -ge 1 ] && [ "$AUDNUM" -le "$TOTAL_AUD" ]; then
+        AUDFORMAT=$(sed -n "${AUDNUM}p" "$HOME/.aud_id_map.txt")
+        echo "Format audio terpilih: $AUDFORMAT"
+        break
+
+    else
+        echo "Nomor \"$AUDNUM\" tidak tersedia. Silakan pilih angka 1–$TOTAL_AUD, 99 untuk tanpa audio, atau 100 untuk keluar."
+    fi
+done
 
 # ===== GABUNGKAN FORMAT =====
 if [ -n "$VIDFORMAT" ]; then
